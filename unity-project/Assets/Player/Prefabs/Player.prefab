@@ -14,6 +14,8 @@ GameObject:
   - component: {fileID: 4459864850019384737}
   - component: {fileID: 4459864850019384741}
   - component: {fileID: 4459864850019384740}
+  - component: {fileID: 4459864850019384742}
+  - component: {fileID: 4459864850019384743}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -167,6 +169,45 @@ MonoBehaviour:
   enableHeadBob: 1
   bobSpeed: 10
   bobAmount: {x: 0, y: 0.1, z: 0}
+--- !u!114 &4459864850019384742
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4459864850019384750}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4e9f2a1b384d6e9f0a2c5d8e1b4f70, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  anchor: {fileID: 0}
+  floorY: 0.08
+  maxLength: 40
+  pointSpacing: 0.35
+  obstaclePadding: 0.12
+  tautStep: 0.75
+  iterationsPerFrame: 24
+  hoseWidth: 0.14
+  hoseColor: {r: 0.18, g: 0.18, b: 0.2, a: 1}
+--- !u!114 &4459864850019384743
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4459864850019384750}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d5f0a3b2c495e7f0a1b3d6e9f2c5a81, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cable: {fileID: 4459864850019384742}
+  barSize: {x: 320, y: 18}
+  barOffset: {x: 0, y: 36}
+  fillColor: {r: 0.75, g: 0.82, b: 0.35, a: 0.95}
+  backColor: {r: 0, g: 0, b: 0, a: 0.55}
+  tautColor: {r: 0.9, g: 0.25, b: 0.2, a: 0.95}
 --- !u!1 &4459864851310106424
 GameObject:
   m_ObjectHideFlags: 0
