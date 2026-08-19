@@ -20,30 +20,49 @@ namespace LastLivingSouls.Cable
         {
             _rects.Clear();
 
-            Collider[] all = Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-            for (int i = 0; i < all.Length; i++)
+            CableObstacle[] obstacles =
+                Object.FindObjectsByType<CableObstacle>(
+                    FindObjectsInactive.Exclude,
+                    FindObjectsSortMode.None);
+
+            for (int obstacleIndex = 0;
+                 obstacleIndex < obstacles.Length;
+                 obstacleIndex++)
             {
-                Collider col = all[i];
-                if (col == null || !col.enabled || col.isTrigger)
-                    continue;
-                if (ignoreRoot != null &&
-                    (col.transform == ignoreRoot || col.transform.IsChildOf(ignoreRoot)))
-                    continue;
-                if (col.gameObject.name == "Ground")
-                    continue;
+                CableObstacle obstacle = obstacles[obstacleIndex];
 
-                Bounds b = col.bounds;
-                if (b.size.y < 0.2f && b.size.x > 5f && b.size.z > 5f)
-                    continue;
+                Collider[] colliders =
+                    obstacle.GetComponentsInChildren<Collider>(
+                        includeInactive: false);
 
-                _rects.Add(new CableRectXZ
+                for (int colliderIndex = 0;
+                     colliderIndex < colliders.Length;
+                     colliderIndex++)
                 {
-                    MinX = b.min.x - padding,
-                    MaxX = b.max.x + padding,
-                    MinZ = b.min.z - padding,
-                    MaxZ = b.max.z + padding,
-                    Name = col.gameObject.name
-                });
+                    Collider col = colliders[colliderIndex];
+
+                    if (col == null || !col.enabled || col.isTrigger)
+                        continue;
+
+                    // Additional protection against player colliders.
+                    if (ignoreRoot != null &&
+                        (col.transform == ignoreRoot ||
+                         col.transform.IsChildOf(ignoreRoot)))
+                    {
+                        continue;
+                    }
+
+                    Bounds bounds = col.bounds;
+
+                    _rects.Add(new CableRectXZ
+                    {
+                        MinX = bounds.min.x - padding,
+                        MaxX = bounds.max.x + padding,
+                        MinZ = bounds.min.z - padding,
+                        MaxZ = bounds.max.z + padding,
+                        Name = $"{obstacle.name}/{col.name}"
+                    });
+                }
             }
         }
 

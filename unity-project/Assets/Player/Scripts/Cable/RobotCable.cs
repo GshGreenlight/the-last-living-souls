@@ -22,7 +22,7 @@ namespace LastLivingSouls.Cable
         [SerializeField] float maxLength = 40f;
         [SerializeField] float pointSpacing = 0.35f;
 
-        [Header("Tighten (hold R)")]
+        [Header("Tighten")]
         [SerializeField] float obstaclePadding = 0.12f;
         [SerializeField] float tautStep = 0.75f;
         [SerializeField] int iterationsPerFrame = 24;
@@ -142,8 +142,16 @@ namespace LastLivingSouls.Cable
 
         void BeginHoldTighten(Vector3 tip)
         {
-            _obstacles.Collect(transform, obstaclePadding);
-            _rubberBand.Begin(_points, F(anchor.position), tip, floorY);
+            _obstacles.Collect(
+                transform,
+                obstaclePadding);
+
+            _rubberBand.Begin(
+                _points,
+                F(anchor.position),
+                tip,
+                floorY);
+
             _holdingTaut = true;
         }
 

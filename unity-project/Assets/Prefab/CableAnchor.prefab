@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 5469458576883950231}
   - component: {fileID: 710957072907437435}
   - component: {fileID: 1583026188922975452}
+  - component: {fileID: 1993410367029669985}
   m_Layer: 0
   m_Name: CableAnchor
   m_TagString: Untagged
@@ -112,3 +113,15 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1993410367029669985
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8525829441872574746}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e68dd69dddbaacc4f9be87203aa40407, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LastLivingSouls.Cable.CableObstacle
