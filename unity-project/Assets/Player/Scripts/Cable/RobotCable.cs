@@ -227,6 +227,11 @@ namespace LastLivingSouls.Cable
 
         void RefreshVisual(Vector3 tip)
         {
+            UsedLength = CableMath.MeasureLength(_points, tip);
+
+            if (cableLine == null)
+                return;
+                
             cableLine.positionCount = _points.Count + 1;
 
             for (int i = 0; i < _points.Count; i++)
