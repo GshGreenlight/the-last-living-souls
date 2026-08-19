@@ -11,6 +11,9 @@ namespace LastLivingSouls.Cable
     [RequireComponent(typeof(Rigidbody))]
     public class RobotCable : MonoBehaviour, ICableReadout, ICableLeash
     {
+        [Header("Input")]
+        [SerializeField] InputActionReference tightenAction;
+
         [Header("Anchor")]
         [SerializeField] Transform anchor;
         [SerializeField] float floorY = 0.08f;
@@ -26,13 +29,14 @@ namespace LastLivingSouls.Cable
 
         [Header("Hose look")]
         [SerializeField] float hoseWidth = 0.14f;
-        [SerializeField] Color hoseColor = new Color(0.18f, 0.18f, 0.2f, 1f);
+
+        [Header("Visuals")]
+        [SerializeField] LineRenderer cableLine;
 
         readonly List<Vector3> _points = new List<Vector3>(256);
         readonly CableObstacleField _obstacles = new CableObstacleField();
         readonly CableRubberBand _rubberBand = new CableRubberBand();
 
-        CableHoseVisual _visual;
         bool _holdingTaut;
         Vector3 _lastAnchorFloor;
 
@@ -41,23 +45,10 @@ namespace LastLivingSouls.Cable
         public float RemainingLength => Mathf.Max(0f, maxLength - UsedLength);
         public float UsedNormalized => maxLength > 0f ? Mathf.Clamp01(UsedLength / maxLength) : 0f;
         public bool IsTightening => _holdingTaut;
-        public string StatusHint => _holdingTaut ? "holding R…" : "hold R";
-
-        void Awake()
-        {
-            _visual = new CableHoseVisual(gameObject);
-            _visual.ApplyStyle(hoseWidth, hoseColor);
-        }
+        public string StatusHint => _holdingTaut ? "holding R..." : "hold R";
 
         void Start()
         {
-            if (anchor == null)
-            {
-                var found = GameObject.Find("CableAnchor");
-                if (found != null)
-                    anchor = found.transform;
-            }
-
             if (anchor == null)
             {
                 Debug.LogError($"{nameof(RobotCable)}: assign CableAnchor in the Inspector.", this);
@@ -68,17 +59,19 @@ namespace LastLivingSouls.Cable
             _lastAnchorFloor = F(anchor.position);
             _points.Clear();
             _points.Add(_lastAnchorFloor);
-            UpdateLengthAndVisual(F(transform.position));
+            RefreshVisual(F(transform.position));
         }
-
-        void OnDestroy() => _visual?.Dispose();
 
         void Update()
         {
             SyncPathToMovedAnchor();
 
             Vector3 tip = F(transform.position);
-            bool holding = Keyboard.current != null && Keyboard.current.rKey.isPressed;
+
+            bool holding =
+                tightenAction != null &&
+                tightenAction.action != null &&
+                tightenAction.action.IsPressed();
 
             if (holding)
             {
@@ -93,7 +86,7 @@ namespace LastLivingSouls.Cable
                 TryLayPoint(tip);
             }
 
-            UpdateLengthAndVisual(F(transform.position));
+            RefreshVisual(F(transform.position));
         }
 
         public Vector3 ClampWishVelocity(Vector3 wishVelocity, float deltaTime)
@@ -224,11 +217,14 @@ namespace LastLivingSouls.Cable
             }
         }
 
-        void UpdateLengthAndVisual(Vector3 tip)
+        void RefreshVisual(Vector3 tip)
         {
-            UsedLength = CableMath.MeasureLength(_points, tip);
-            _visual?.ApplyStyle(hoseWidth, hoseColor);
-            _visual?.Refresh(_points, tip, hoseWidth);
+            cableLine.positionCount = _points.Count + 1;
+
+            for (int i = 0; i < _points.Count; i++)
+                cableLine.SetPosition(i, _points[i]);
+
+            cableLine.SetPosition(_points.Count, tip);
         }
 
         Vector3 F(Vector3 world) => CableMath.Floor(world, floorY);
