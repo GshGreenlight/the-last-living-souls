@@ -3,48 +3,56 @@ using UnityEngine;
 
 namespace LastLivingSouls.Cable
 {
-    public struct CableRectXZ
-    {
-        public float MinX, MaxX, MinZ, MaxZ;
-        public string Name;
-    }
-
-    /// <summary>XZ obstacle footprints the hose cannot cut through.</summary>
+    /// <summary>
+    /// Live obstacle colliders used to keep cable points outside their real 3D shapes.
+    /// </summary>
     public sealed class CableObstacleField
     {
-        readonly List<CableRectXZ> _rects = new List<CableRectXZ>(32);
+        const int DepenetrationPasses = 4;
 
-        public IReadOnlyList<CableRectXZ> Rects => _rects;
+        readonly List<Collider> _colliders = new List<Collider>(32);
 
-        public void Collect(Transform ignoreRoot, float padding)
+        SphereCollider _cableProbe;
+        float _cableRadius;
+        float _collisionSkin;
+
+        public IReadOnlyList<Collider> Colliders => _colliders;
+
+        public void Collect(
+            Transform ignoreRoot,
+            SphereCollider cableProbe,
+            float cableRadius,
+            float collisionSkin)
         {
-            _rects.Clear();
+            _colliders.Clear();
+
+            _cableProbe = cableProbe;
+            _cableRadius = Mathf.Max(0.001f, cableRadius);
+            _collisionSkin = Mathf.Max(0f, collisionSkin);
+
+            ConfigureProbe();
 
             CableObstacle[] obstacles =
                 Object.FindObjectsByType<CableObstacle>(
                     FindObjectsInactive.Exclude,
                     FindObjectsSortMode.None);
 
-            for (int obstacleIndex = 0;
-                 obstacleIndex < obstacles.Length;
-                 obstacleIndex++)
+            foreach (CableObstacle obstacle in obstacles)
             {
-                CableObstacle obstacle = obstacles[obstacleIndex];
-
                 Collider[] colliders =
                     obstacle.GetComponentsInChildren<Collider>(
                         includeInactive: false);
 
-                for (int colliderIndex = 0;
-                     colliderIndex < colliders.Length;
-                     colliderIndex++)
+                foreach (Collider col in colliders)
                 {
-                    Collider col = colliders[colliderIndex];
-
-                    if (col == null || !col.enabled || col.isTrigger)
+                    if (col == null ||
+                        col == _cableProbe ||
+                        !col.enabled ||
+                        col.isTrigger)
+                    {
                         continue;
+                    }
 
-                    // Additional protection against player colliders.
                     if (ignoreRoot != null &&
                         (col.transform == ignoreRoot ||
                          col.transform.IsChildOf(ignoreRoot)))
@@ -52,65 +60,98 @@ namespace LastLivingSouls.Cable
                         continue;
                     }
 
-                    Bounds bounds = col.bounds;
-
-                    _rects.Add(new CableRectXZ
-                    {
-                        MinX = bounds.min.x - padding,
-                        MaxX = bounds.max.x + padding,
-                        MinZ = bounds.min.z - padding,
-                        MaxZ = bounds.max.z + padding,
-                        Name = $"{obstacle.name}/{col.name}"
-                    });
+                    _colliders.Add(col);
                 }
             }
         }
 
         public Vector3 PushOut(Vector3 point)
         {
-            for (int i = 0; i < _rects.Count; i++)
-                point = PushOutOfRect(point, _rects[i]);
+            if (_cableProbe == null)
+                return point;
+
+            float broadPhaseRadius = _cableRadius + _collisionSkin;
+            float broadPhaseRadiusSqr = broadPhaseRadius * broadPhaseRadius;
+
+            // Resolving one overlap can move the point into another collider.
+            // A few passes handle compound and overlapping obstacles.
+            for (int pass = 0; pass < DepenetrationPasses; pass++)
+            {
+                bool moved = false;
+
+                for (int i = 0; i < _colliders.Count; i++)
+                {
+                    Collider obstacle = _colliders[i];
+                    if (obstacle == null || !obstacle.enabled)
+                        continue;
+
+                    // Bounds are only a cheap broad-phase rejection here. The
+                    // actual contact is calculated against the real collider.
+                    if (obstacle.bounds.SqrDistance(point) > broadPhaseRadiusSqr)
+                        continue;
+
+                    if (!Physics.ComputePenetration(
+                            _cableProbe,
+                            point,
+                            Quaternion.identity,
+                            obstacle,
+                            obstacle.transform.position,
+                            obstacle.transform.rotation,
+                            out Vector3 direction,
+                            out float distance))
+                    {
+                        continue;
+                    }
+
+                    point += direction * (distance + _collisionSkin);
+                    moved = true;
+                }
+
+                if (!moved)
+                    break;
+            }
+
             return point;
         }
 
         public bool IsOnContour(Vector3 point, float eps = 0.04f)
         {
-            for (int i = 0; i < _rects.Count; i++)
+            float contourDistance = _cableRadius + _collisionSkin + Mathf.Max(0f, eps);
+            float contourDistanceSqr = contourDistance * contourDistance;
+
+            for (int i = 0; i < _colliders.Count; i++)
             {
-                CableRectXZ r = _rects[i];
-                bool onX = Mathf.Abs(point.x - r.MinX) < eps || Mathf.Abs(point.x - r.MaxX) < eps;
-                bool onZ = Mathf.Abs(point.z - r.MinZ) < eps || Mathf.Abs(point.z - r.MaxZ) < eps;
-                bool inX = point.x >= r.MinX - eps && point.x <= r.MaxX + eps;
-                bool inZ = point.z >= r.MinZ - eps && point.z <= r.MaxZ + eps;
-                if ((onX && inZ) || (onZ && inX))
+                Collider obstacle = _colliders[i];
+                if (obstacle == null || !obstacle.enabled)
+                    continue;
+
+                if (obstacle.bounds.SqrDistance(point) > contourDistanceSqr)
+                    continue;
+
+                Vector3 closest = obstacle.ClosestPoint(point);
+                if ((closest - point).sqrMagnitude <= contourDistanceSqr)
                     return true;
             }
 
             return false;
         }
 
-        static Vector3 PushOutOfRect(Vector3 p, CableRectXZ r)
+        void ConfigureProbe()
         {
-            if (p.x <= r.MinX || p.x >= r.MaxX || p.z <= r.MinZ || p.z >= r.MaxZ)
-                return p;
+            if (_cableProbe == null)
+                return;
 
-            float toMinX = p.x - r.MinX;
-            float toMaxX = r.MaxX - p.x;
-            float toMinZ = p.z - r.MinZ;
-            float toMaxZ = r.MaxZ - p.z;
+            // ComputePenetration receives the desired world-space probe pose.
+            // Keeping the local center at zero makes that pose unambiguous.
+            _cableProbe.center = Vector3.zero;
 
-            float best = toMinX;
-            int side = 0;
-            if (toMaxX < best) { best = toMaxX; side = 1; }
-            if (toMinZ < best) { best = toMinZ; side = 2; }
-            if (toMaxZ < best) { side = 3; }
+            Vector3 scale = _cableProbe.transform.lossyScale;
+            float maxScale = Mathf.Max(
+                Mathf.Abs(scale.x),
+                Mathf.Abs(scale.y),
+                Mathf.Abs(scale.z));
 
-            if (side == 0) p.x = r.MinX;
-            else if (side == 1) p.x = r.MaxX;
-            else if (side == 2) p.z = r.MinZ;
-            else p.z = r.MaxZ;
-
-            return p;
+            _cableProbe.radius = _cableRadius / Mathf.Max(maxScale, 0.0001f);
         }
     }
 }

@@ -23,9 +23,13 @@ namespace LastLivingSouls.Cable
         [SerializeField] float pointSpacing = 0.35f;
 
         [Header("Tighten")]
-        [SerializeField] float obstaclePadding = 0.12f;
         [SerializeField] float tautStep = 0.75f;
         [SerializeField] int iterationsPerFrame = 24;
+
+        [Header("Collision")]
+        [SerializeField] SphereCollider cableProbe;
+        [SerializeField, Min(0.001f)] float cableRadius = 0.07f;
+        [SerializeField, Min(0f)] float collisionSkin = 0.002f;
 
         [Header("Hose look")]
         [SerializeField] float hoseWidth = 0.14f;
@@ -54,6 +58,21 @@ namespace LastLivingSouls.Cable
                 Debug.LogError($"{nameof(RobotCable)}: assign CableAnchor in the Inspector.", this);
                 enabled = false;
                 return;
+            }
+
+            if (cableProbe == null)
+            {
+                Debug.LogWarning(
+                    $"{nameof(RobotCable)}: assign a dedicated SphereCollider " +
+                    "to Cable Probe. Cable obstacle collision is disabled until it is assigned.",
+                    this);
+            }
+            else if (!cableProbe.isTrigger)
+            {
+                Debug.LogWarning(
+                    $"{nameof(RobotCable)}: Cable Probe should be a trigger so it does not " +
+                    "participate in normal Rigidbody collisions.",
+                    cableProbe);
             }
 
             _lastAnchorFloor = F(anchor.position);
@@ -144,7 +163,9 @@ namespace LastLivingSouls.Cable
         {
             _obstacles.Collect(
                 transform,
-                obstaclePadding);
+                cableProbe,
+                cableRadius,
+                collisionSkin);
 
             _rubberBand.Begin(
                 _points,
@@ -250,13 +271,12 @@ namespace LastLivingSouls.Cable
                 Gizmos.DrawSphere(_points[i], 0.06f);
 
             Gizmos.color = new Color(1f, 0.15f, 0.15f, 0.9f);
-            var rects = _obstacles.Rects;
-            for (int i = 0; i < rects.Count; i++)
+            var colliders = _obstacles.Colliders;
+            for (int i = 0; i < colliders.Count; i++)
             {
-                CableRectXZ r = rects[i];
-                Vector3 center = new Vector3((r.MinX + r.MaxX) * 0.5f, floorY + 0.5f, (r.MinZ + r.MaxZ) * 0.5f);
-                Vector3 size = new Vector3(r.MaxX - r.MinX, 1f, r.MaxZ - r.MinZ);
-                Gizmos.DrawWireCube(center, size);
+                Collider col = colliders[i];
+                if (col != null)
+                    Gizmos.DrawWireCube(col.bounds.center, col.bounds.size);
             }
         }
 #endif
