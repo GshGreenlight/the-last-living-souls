@@ -28,11 +28,8 @@ namespace LastLivingSouls.Cable
 
         [Header("Collision")]
         [SerializeField] SphereCollider cableProbe;
-        [SerializeField, Min(0.001f)] float cableRadius = 0.07f;
         [SerializeField, Min(0f)] float collisionSkin = 0.002f;
-
-        [Header("Hose look")]
-        [SerializeField] float hoseWidth = 0.14f;
+        [SerializeField] LayerMask cableObstacleMask = 1 << 8;
 
         [Header("Visuals")]
         [SerializeField] LineRenderer cableLine;
@@ -50,6 +47,27 @@ namespace LastLivingSouls.Cable
         public float UsedNormalized => maxLength > 0f ? Mathf.Clamp01(UsedLength / maxLength) : 0f;
         public bool IsTightening => _holdingTaut;
         public string StatusHint => _holdingTaut ? "holding R..." : "hold R";
+
+        float CableWidth
+        {
+            get
+            {
+                if (cableLine == null)
+                    return 0.14f;
+
+                AnimationCurve curve = cableLine.widthCurve;
+                float curveValue =
+                    curve != null && curve.length > 0
+                        ? curve.Evaluate(0.5f)
+                        : 1f;
+
+                return Mathf.Max(
+                    0.002f,
+                    cableLine.widthMultiplier * curveValue);
+            }
+        }
+
+        float CableRadius => CableWidth * 0.5f;
 
         void Start()
         {
@@ -73,6 +91,14 @@ namespace LastLivingSouls.Cable
                     $"{nameof(RobotCable)}: Cable Probe should be a trigger so it does not " +
                     "participate in normal Rigidbody collisions.",
                     cableProbe);
+            }
+
+            if (cableObstacleMask.value == 0)
+            {
+                Debug.LogWarning(
+                    $"{nameof(RobotCable)}: Cable Obstacle Mask is empty. " +
+                    "Cable obstacle collision is disabled.",
+                    this);
             }
 
             _lastAnchorFloor = F(anchor.position);
@@ -161,11 +187,11 @@ namespace LastLivingSouls.Cable
 
         void BeginHoldTighten(Vector3 tip)
         {
-            _obstacles.Collect(
-                transform,
+            _obstacles.Configure(
                 cableProbe,
-                cableRadius,
-                collisionSkin);
+                CableRadius,
+                collisionSkin,
+                cableObstacleMask);
 
             _rubberBand.Begin(
                 _points,
@@ -270,14 +296,6 @@ namespace LastLivingSouls.Cable
             for (int i = 0; i < _points.Count; i++)
                 Gizmos.DrawSphere(_points[i], 0.06f);
 
-            Gizmos.color = new Color(1f, 0.15f, 0.15f, 0.9f);
-            var colliders = _obstacles.Colliders;
-            for (int i = 0; i < colliders.Count; i++)
-            {
-                Collider col = colliders[i];
-                if (col != null)
-                    Gizmos.DrawWireCube(col.bounds.center, col.bounds.size);
-            }
         }
 #endif
     }
