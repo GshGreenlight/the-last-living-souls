@@ -67,7 +67,6 @@ namespace LastLivingSouls.Cable
             {
                 RunPass(
                     start,
-                    tip,
                     floorY,
                     pull,
                     pointMergeDistance,
@@ -232,7 +231,6 @@ namespace LastLivingSouls.Cable
 
         void RunPass(
             Vector3 start,
-            Vector3 tip,
             float floorY,
             float pull,
             float pointMergeDistance,
@@ -256,7 +254,7 @@ namespace LastLivingSouls.Cable
                 Vector3 mid = (prev + next) * 0.5f;
                 Vector3 pulled = Vector3.Lerp(curr, mid, pull);
                 if (obstacles != null)
-                    pulled = obstacles.ConstrainMove(curr, pulled);
+                    pulled = obstacles.PushOut(pulled);
                 _next.Add(CableMath.Floor(pulled, floorY));
             }
 

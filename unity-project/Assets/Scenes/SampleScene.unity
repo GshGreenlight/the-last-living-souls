@@ -19987,7 +19987,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
       propertyPath: collisionSkin
-      value: 0.02
+      value: 0.002
+      objectReference: {fileID: 0}
+    - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
+      propertyPath: solverPointSpacing
+      value: 0.12
       objectReference: {fileID: 0}
     - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
       propertyPath: releaseSimplificationTolerance

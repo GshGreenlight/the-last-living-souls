@@ -52,9 +52,7 @@ namespace LastLivingSouls.Cable
 
         public float MaxLength => maxLength;
         public float UsedLength { get; private set; }
-        public float RemainingLength => Mathf.Max(0f, maxLength - UsedLength);
         public float UsedNormalized => maxLength > 0f ? Mathf.Clamp01(UsedLength / maxLength) : 0f;
-        public bool IsTightening => _holdingTaut;
         public string StatusHint => _holdingTaut ? "holding R..." : "hold R";
 
         float CableWidth
