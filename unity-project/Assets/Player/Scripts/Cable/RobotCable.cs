@@ -25,6 +25,10 @@ namespace LastLivingSouls.Cable
         [Header("Tighten")]
         [SerializeField] float tautStep = 0.75f;
         [SerializeField] int iterationsPerFrame = 24;
+        [SerializeField, Min(0.02f)] float solverPointSpacing = 0.2f;
+        [SerializeField, Min(0f)] float pointMergeDistance = 0.04f;
+        [SerializeField, Min(0f)] float tipMergeDistance = 0.08f;
+        [SerializeField, Min(0f)] float releaseSimplificationTolerance = 0.002f;
 
         [Header("Collision")]
         [SerializeField] SphereCollider cableProbe;
@@ -33,6 +37,11 @@ namespace LastLivingSouls.Cable
 
         [Header("Visuals")]
         [SerializeField] LineRenderer cableLine;
+
+        [Header("Debug")]
+        [SerializeField] bool drawCableCollisionSpheres = true;
+        [SerializeField] Color cableCollisionGizmoColor =
+            new Color(1f, 0.6f, 0.1f, 0.9f);
 
         readonly List<Vector3> _points = new List<Vector3>(256);
         readonly CableObstacleField _obstacles = new CableObstacleField();
@@ -197,7 +206,8 @@ namespace LastLivingSouls.Cable
                 _points,
                 F(anchor.position),
                 tip,
-                floorY);
+                floorY,
+                solverPointSpacing);
 
             _holdingTaut = true;
         }
@@ -210,13 +220,16 @@ namespace LastLivingSouls.Cable
                 floorY,
                 tautStep,
                 iterationsPerFrame,
+                pointMergeDistance,
                 _obstacles);
             CommitWorkToPoints(tip);
         }
 
         void EndHoldTighten(Vector3 tip)
         {
-            _rubberBand.Finish(floorY, _obstacles);
+            _rubberBand.Finish(
+                _obstacles,
+                releaseSimplificationTolerance);
             CommitWorkToPoints(tip);
             _holdingTaut = false;
             _rubberBand.Clear();
@@ -231,8 +244,11 @@ namespace LastLivingSouls.Cable
             for (int i = 0; i < work.Count; i++)
             {
                 Vector3 p = F(work[i]);
-                if (i == work.Count - 1 && CableMath.HorizontalDistance(p, tip) <= 0.08f)
+                if (i == work.Count - 1 &&
+                    CableMath.HorizontalDistance(p, tip) <= tipMergeDistance)
+                {
                     break;
+                }
                 _points.Add(p);
             }
 
@@ -290,12 +306,31 @@ namespace LastLivingSouls.Cable
         Vector3 F(Vector3 world) => CableMath.Floor(world, floorY);
 
 #if UNITY_EDITOR
-        void OnDrawGizmosSelected()
+        void OnDrawGizmos()
         {
-            Gizmos.color = new Color(1f, 0.6f, 0.1f, 0.9f);
-            for (int i = 0; i < _points.Count; i++)
-                Gizmos.DrawSphere(_points[i], 0.06f);
+            if (!drawCableCollisionSpheres)
+                return;
 
+            Gizmos.color = cableCollisionGizmoColor;
+            float probeRadius = CableRadius + Mathf.Max(0f, collisionSkin);
+
+            for (int i = 0; i < _points.Count; i++)
+                DrawCollisionSphere(_points[i], probeRadius);
+
+            // The moving tip is rendered separately from the stored path.
+            DrawCollisionSphere(F(transform.position), probeRadius);
+        }
+
+        void DrawCollisionSphere(Vector3 center, float radius)
+        {
+            Color wireColor = cableCollisionGizmoColor;
+            Color fillColor = wireColor;
+            fillColor.a *= 0.2f;
+
+            Gizmos.color = fillColor;
+            Gizmos.DrawSphere(center, radius);
+            Gizmos.color = wireColor;
+            Gizmos.DrawWireSphere(center, radius);
         }
 #endif
     }

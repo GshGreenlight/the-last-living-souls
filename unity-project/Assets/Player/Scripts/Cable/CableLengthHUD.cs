@@ -19,6 +19,9 @@ namespace LastLivingSouls.Cable
         Color tautColor =
             new Color(0.9f, 0.25f, 0.2f, 0.95f);
 
+        [SerializeField, Range(0f, 1f)]
+        float tautColorThreshold = 0.98f;
+
         void Awake()
         {
             if (cable == null || fill == null || label == null)
@@ -36,7 +39,7 @@ namespace LastLivingSouls.Cable
             float used = cable.UsedNormalized;
 
             fill.fillAmount = used;
-            fill.color = used > 0.98f
+            fill.color = used > tautColorThreshold
                 ? tautColor
                 : normalColor;
 

@@ -483,12 +483,15 @@ MonoBehaviour:
   pointSpacing: 0.35
   tautStep: 0.75
   iterationsPerFrame: 24
+  releaseSimplificationTolerance: 0.002
   cableProbe: {fileID: 5961353006589065022}
   collisionSkin: 0.002
   cableObstacleMask:
     serializedVersion: 2
     m_Bits: 256
   cableLine: {fileID: 8115528903555233432}
+  drawCableCollisionSpheres: 1
+  cableCollisionGizmoColor: {r: 1, g: 0.6, b: 0.1, a: 0.9}
 --- !u!1 &7904605998494955487
 GameObject:
   m_ObjectHideFlags: 0

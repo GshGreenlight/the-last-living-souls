@@ -51,51 +51,5 @@ namespace LastLivingSouls.Cable
                     dst.Add(Floor(Vector3.Lerp(a, b, s / (float)segs), floorY));
             }
         }
-
-        public static void CollapseCollinear(
-            List<Vector3> path,
-            float floorY,
-            System.Func<Vector3, bool> keepPoint)
-        {
-            if (path == null || path.Count < 3)
-                return;
-
-            bool removed;
-            int guard = 0;
-            do
-            {
-                removed = false;
-                for (int i = 1; i < path.Count - 1; i++)
-                {
-                    Vector3 a = path[i - 1];
-                    Vector3 b = path[i];
-                    Vector3 c = path[i + 1];
-
-                    Vector3 ab = c - a;
-                    ab.y = 0f;
-                    if (ab.sqrMagnitude < 0.0001f)
-                    {
-                        path.RemoveAt(i);
-                        removed = true;
-                        break;
-                    }
-
-                    if (keepPoint != null && keepPoint(b))
-                        continue;
-
-                    Vector3 ap = b - a;
-                    ap.y = 0f;
-                    float t = Vector3.Dot(ap, ab) / ab.sqrMagnitude;
-                    Vector3 proj = a + ab * t;
-                    proj.y = floorY;
-                    if (HorizontalDistance(b, proj) < 0.06f)
-                    {
-                        path.RemoveAt(i);
-                        removed = true;
-                        break;
-                    }
-                }
-            } while (removed && guard++ < 2048);
-        }
     }
 }
