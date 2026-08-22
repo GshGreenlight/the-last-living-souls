@@ -2755,6 +2755,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &122956026
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 122956027}
+  m_Layer: 8
+  m_Name: CableStart
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &122956027
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 122956026}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.6, y: 1.704, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1655252538}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!43 &259013488
 Mesh:
   m_ObjectHideFlags: 0
@@ -3330,7 +3361,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 7057567259684502821, guid: 55c3f656a9b78b946a680c6373434134, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 122956027}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 55c3f656a9b78b946a680c6373434134, type: 3}
 --- !u!1 &710102087
@@ -3975,6 +4009,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7c4e9f2a1b384d6e9f0a2c5d8e1b4f70, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!4 &1129277268 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3569039370179161483, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
+  m_PrefabInstance: {fileID: 8765489994903951804}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1171372319
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4802,7 +4841,7 @@ GameObject:
   - component: {fileID: 1602348952}
   - component: {fileID: 1602348951}
   - component: {fileID: 1602348950}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Ground
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -19976,26 +20015,54 @@ PrefabInstance:
     - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
       propertyPath: anchor
       value: 
-      objectReference: {fileID: 1655252538}
+      objectReference: {fileID: 122956027}
+    - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
+      propertyPath: damping
+      value: 0.06
+      objectReference: {fileID: 0}
+    - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
+      propertyPath: cableTip
+      value: 
+      objectReference: {fileID: 1129277268}
     - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
       propertyPath: maxLength
       value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
-      propertyPath: pointSpacing
-      value: 0.35
+      propertyPath: reelSpeed
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
+      propertyPath: gravityScale
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
       propertyPath: collisionSkin
       value: 0.002
       objectReference: {fileID: 0}
     - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
+      propertyPath: surfaceFriction
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
       propertyPath: solverPointSpacing
       value: 0.12
       objectReference: {fileID: 0}
     - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
-      propertyPath: releaseSimplificationTolerance
-      value: 0.002
+      propertyPath: constraintIterations
+      value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
+      propertyPath: reelBlockedTolerance
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
+      propertyPath: reelBlockedStatusHoldTime
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3569039370179161487, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
+      propertyPath: segmentCollisionIterations
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 4459864850019384738, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
       propertyPath: m_LocalPosition.x
@@ -20063,7 +20130,7 @@ PrefabInstance:
       objectReference: {fileID: -6584437510705195265, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     - target: {fileID: 4459864850019384742, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
       propertyPath: cableObstacleMask.m_Bits
-      value: 256
+      value: 257
       objectReference: {fileID: 0}
     - target: {fileID: 4459864850019384750, guid: 6bacecc4f3df9584198879c73a6b6c36, type: 3}
       propertyPath: m_Name

@@ -478,17 +478,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tightenAction: {fileID: -6584437510705195265, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   anchor: {fileID: 0}
-  floorY: 0.08
+  cableTip: {fileID: 0}
   maxLength: 40
-  pointSpacing: 0.35
-  tautStep: 0.75
-  iterationsPerFrame: 24
-  releaseSimplificationTolerance: 0.002
+  solverPointSpacing: 0.12
+  reelSpeed: 4
+  reelBlockedTolerance: 0.01
+  reelBlockedStatusHoldTime: 0.15
+  constraintIterations: 12
+  segmentCollisionIterations: 2
+  damping: 0.02
+  gravityScale: 1
+  surfaceFriction: 0.2
   cableProbe: {fileID: 5961353006589065022}
+  cableSegmentProbe: {fileID: 5961353006589065023}
   collisionSkin: 0.002
   cableObstacleMask:
     serializedVersion: 2
-    m_Bits: 256
+    m_Bits: 257
   cableLine: {fileID: 8115528903555233432}
   drawCableCollisionSpheres: 1
   cableCollisionGizmoColor: {r: 1, g: 0.6, b: 0.1, a: 0.9}
@@ -502,6 +508,7 @@ GameObject:
   m_Component:
   - component: {fileID: 347722292435475041}
   - component: {fileID: 5961353006589065022}
+  - component: {fileID: 5961353006589065023}
   m_Layer: 0
   m_Name: CableCollisionProbe
   m_TagString: Untagged
@@ -544,4 +551,27 @@ SphereCollider:
   m_Enabled: 1
   serializedVersion: 3
   m_Radius: 0.5
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!136 &5961353006589065023
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7904605998494955487}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.07
+  m_Height: 0.14
+  m_Direction: 2
   m_Center: {x: 0, y: 0, z: 0}
