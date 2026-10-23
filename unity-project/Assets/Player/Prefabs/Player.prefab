@@ -312,7 +312,7 @@ MonoBehaviour:
   groundCheckDistance: 0.15
   groundMask:
     serializedVersion: 2
-    m_Bits: 256
+    m_Bits: 4294967295
   mouseSensitivity: 0.1
   minPitch: -80
   maxPitch: 80

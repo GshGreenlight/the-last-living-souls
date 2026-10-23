@@ -136,11 +136,14 @@ public class RigidbodyFPS : MonoBehaviour
         Bounds bounds = ownCollider.bounds;
         Vector3 checkPos = new Vector3(bounds.center.x, bounds.min.y + groundCheckRadius, bounds.center.z);
 
+        // LayerMask 0 = "Nothing" — never grounds, so WASD dies. Treat as Everything.
+        int mask = groundMask.value == 0 ? ~0 : groundMask.value;
+
         int hitCount = Physics.OverlapSphereNonAlloc(
             checkPos,
             groundCheckRadius + groundCheckDistance,
             groundCheckResults,
-            groundMask,
+            mask,
             QueryTriggerInteraction.Ignore
         );
 
