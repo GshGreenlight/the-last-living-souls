@@ -1,0 +1,12 @@
+# Local Cursor agent skills, archives, and project agent config (do not commit)
+.cursor/
+
+# Local agent planning docs (intent / specs / tasks) — do not commit
+.local/
+docs/intent/
+docs/specs/
+tasks/
+
+# Local IDE / VS hint (machine-specific)
+unity-project/.vsconfig
+**/.vsconfig
