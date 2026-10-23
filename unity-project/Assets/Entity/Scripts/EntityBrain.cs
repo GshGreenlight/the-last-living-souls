@@ -32,6 +32,10 @@ public class EntityBrain : MonoBehaviour
     public float touchPlayerRadius = 0.8f;
     public GameOverController gameOver;
 
+    [Header("Distract")]
+    public float distractMoveSpeed = 5f;
+    public float distractArriveDistance = 0.4f;
+
     [Header("Debug")]
     public bool drawGizmos = true;
 
@@ -43,6 +47,11 @@ public class EntityBrain : MonoBehaviour
     private int _patrolDir = 1;
     private float _chaseDistanceAlong;
     private bool _failed;
+
+    private Transform _distractor;
+    private float _inspectSeconds = 2.5f;
+    private float _inspectTimer;
+    private bool _inspecting;
 
     private void Awake()
     {
@@ -74,7 +83,7 @@ public class EntityBrain : MonoBehaviour
                 TickChase();
                 break;
             case EntityState.Distracted:
-                // Task 7
+                TickDistracted();
                 break;
         }
 
@@ -195,16 +204,92 @@ public class EntityBrain : MonoBehaviour
             Debug.Log("GAME OVER — entity touched player (assign GameOverController)");
     }
 
-    /// <summary>Used by lever (Task 7).</summary>
+    /// <summary>
+    /// Walk to distractor, inspect, then return to Patrol (nearest waypoint).
+    /// Works from Patrol or ChaseWire. Ignored if already distracted or game over.
+    /// </summary>
     public void DistractToward(Transform distractor, float inspectSeconds = 2.5f)
     {
-        // Filled in Task 7
-        if (State != EntityState.ChaseWire || distractor == null)
+        if (_failed || distractor == null)
             return;
 
+        // Already busy with a distractor — ignore second pull (wiki-lite).
+        if (State == EntityState.Distracted)
+            return;
+
+        _distractor = distractor;
+        _inspectSeconds = Mathf.Max(0.1f, inspectSeconds);
+        _inspectTimer = 0f;
+        _inspecting = false;
         State = EntityState.Distracted;
-        Debug.Log($"Entity distracted toward {distractor.name} for {inspectSeconds}s (stub)");
+    }
+
+    private void TickDistracted()
+    {
+        if (_distractor == null)
+        {
+            EnterPatrolNearestWaypoint();
+            return;
+        }
+
+        if (!_inspecting)
+        {
+            MoveToward(_distractor.position, distractMoveSpeed);
+
+            Vector3 flat = transform.position;
+            Vector3 goal = _distractor.position;
+            flat.y = 0f;
+            goal.y = 0f;
+            if (Vector3.Distance(flat, goal) > distractArriveDistance)
+                return;
+
+            _inspecting = true;
+            _inspectTimer = 0f;
+            return;
+        }
+
+        _inspectTimer += Time.deltaTime;
+        if (_inspectTimer < _inspectSeconds)
+            return;
+
+        _distractor = null;
+        _inspecting = false;
+        EnterPatrolNearestWaypoint();
+    }
+
+    private void EnterPatrolNearestWaypoint()
+    {
         State = EntityState.Patrol;
+        PickNearestPatrolIndex();
+    }
+
+    private void PickNearestPatrolIndex()
+    {
+        if (patrolWaypoints == null || patrolWaypoints.Length == 0)
+            return;
+
+        float best = float.PositiveInfinity;
+        int bestIndex = 0;
+        Vector3 pos = transform.position;
+        pos.y = 0f;
+
+        for (int i = 0; i < patrolWaypoints.Length; i++)
+        {
+            if (patrolWaypoints[i] == null)
+                continue;
+
+            Vector3 wp = patrolWaypoints[i].position;
+            wp.y = 0f;
+            float d = Vector3.Distance(pos, wp);
+            if (d < best)
+            {
+                best = d;
+                bestIndex = i;
+            }
+        }
+
+        _patrolIndex = bestIndex;
+        _patrolDir = 1;
     }
 
     private void MoveToward(Vector3 worldTarget, float speed)
