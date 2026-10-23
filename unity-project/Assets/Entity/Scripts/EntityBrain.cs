@@ -8,8 +8,8 @@ public enum EntityState
 }
 
 /// <summary>
-/// Task 1 scaffold: Inspector wiring + cable sample buffer.
-/// Patrol / chase / game over land in later tasks.
+/// Blind entity: patrol → step on cable → chase along cable → touch = game over.
+/// Wire logic filled in subsequent tasks; Task 1 = scaffold + Inspector wiring.
 /// </summary>
 public class EntityBrain : MonoBehaviour
 {
@@ -18,18 +18,19 @@ public class EntityBrain : MonoBehaviour
     public Transform player;
     public Transform[] patrolWaypoints;
 
-    [Header("Patrol (Task 2)")]
+    [Header("Patrol")]
     public float patrolSpeed = 2f;
     public bool pingPong;
 
-    [Header("Wire / Chase (Tasks 3–4)")]
+    [Header("Wire / Chase")]
     public float chaseSpeed = 6f;
     public float wireDetectRadius = 0.6f;
     public float maxWireYDelta = 2f;
     public int minCablePointsToChase = 3;
 
-    [Header("Touch (Task 5)")]
+    [Header("Touch / Game Over")]
     public float touchPlayerRadius = 0.8f;
+    public GameOverController gameOver;
 
     [Header("Debug")]
     public bool drawGizmos = true;
@@ -38,6 +39,10 @@ public class EntityBrain : MonoBehaviour
 
     private Vector3[] _pathBuffer;
     private int _pathCount;
+    private int _patrolIndex;
+    private int _patrolDir = 1;
+    private float _chaseDistanceAlong;
+    private bool _failed;
 
     private void Awake()
     {
@@ -53,14 +58,170 @@ public class EntityBrain : MonoBehaviour
 
     private void Update()
     {
+        if (_failed)
+            return;
+
         EnsureBuffer();
         SampleCable();
-        // Task 2+: patrol / detect / chase
+
+        switch (State)
+        {
+            case EntityState.Patrol:
+                TickPatrol();
+                TryDetectWire();
+                break;
+            case EntityState.ChaseWire:
+                TickChase();
+                break;
+            case EntityState.Distracted:
+                // Task 7
+                break;
+        }
+
+        TryTouchPlayer();
     }
 
     private void SampleCable()
     {
         _pathCount = CablePolylineQuery.Sample(cable, _pathBuffer);
+    }
+
+    private void TickPatrol()
+    {
+        if (patrolWaypoints == null || patrolWaypoints.Length == 0)
+            return;
+
+        Transform target = patrolWaypoints[Mathf.Clamp(_patrolIndex, 0, patrolWaypoints.Length - 1)];
+        if (target == null)
+            return;
+
+        MoveToward(target.position, patrolSpeed);
+
+        Vector3 flat = transform.position;
+        Vector3 goal = target.position;
+        flat.y = 0f;
+        goal.y = 0f;
+        if (Vector3.Distance(flat, goal) > 0.15f)
+            return;
+
+        if (pingPong)
+        {
+            if (_patrolIndex >= patrolWaypoints.Length - 1)
+                _patrolDir = -1;
+            else if (_patrolIndex <= 0)
+                _patrolDir = 1;
+            _patrolIndex += _patrolDir;
+        }
+        else
+        {
+            _patrolIndex = (_patrolIndex + 1) % patrolWaypoints.Length;
+        }
+    }
+
+    private void TryDetectWire()
+    {
+        if (_pathCount < minCablePointsToChase)
+            return;
+
+        var nearest = CablePolylineQuery.FindNearestXZ(
+            transform.position, _pathBuffer, _pathCount, maxWireYDelta);
+
+        if (!nearest.Valid || nearest.Distance > wireDetectRadius)
+            return;
+
+        _chaseDistanceAlong = CablePolylineQuery.DistanceAlongPathToNearest(
+            _pathBuffer, _pathCount, nearest.SegmentIndex, nearest.SegmentT);
+        State = EntityState.ChaseWire;
+    }
+
+    private void TickChase()
+    {
+        if (_pathCount < minCablePointsToChase)
+        {
+            State = EntityState.Patrol;
+            return;
+        }
+
+        var nearest = CablePolylineQuery.FindNearestXZ(
+            transform.position, _pathBuffer, _pathCount, maxWireYDelta);
+
+        // Retracted / lost the cable
+        if (!nearest.Valid || nearest.Distance > wireDetectRadius * 3f)
+        {
+            State = EntityState.Patrol;
+            return;
+        }
+
+        _chaseDistanceAlong += chaseSpeed * Time.deltaTime;
+
+        if (!CablePolylineQuery.GetPointAlongPath(
+                _pathBuffer, _pathCount, _chaseDistanceAlong,
+                out Vector3 target, out _, out bool atEnd))
+        {
+            State = EntityState.Patrol;
+            return;
+        }
+
+        MoveToward(target, chaseSpeed);
+
+        if (atEnd && player != null)
+            MoveToward(player.position, chaseSpeed);
+    }
+
+    private void TryTouchPlayer()
+    {
+        if (player == null)
+            return;
+
+        Vector3 a = transform.position;
+        Vector3 b = player.position;
+        a.y = 0f;
+        b.y = 0f;
+        if (Vector3.Distance(a, b) > touchPlayerRadius)
+            return;
+
+        TriggerGameOver();
+    }
+
+    private void TriggerGameOver()
+    {
+        if (_failed)
+            return;
+
+        _failed = true;
+        if (gameOver != null)
+            gameOver.Trigger();
+        else
+            Debug.Log("GAME OVER — entity touched player (assign GameOverController)");
+    }
+
+    /// <summary>Used by lever (Task 7).</summary>
+    public void DistractToward(Transform distractor, float inspectSeconds = 2.5f)
+    {
+        // Filled in Task 7
+        if (State != EntityState.ChaseWire || distractor == null)
+            return;
+
+        State = EntityState.Distracted;
+        Debug.Log($"Entity distracted toward {distractor.name} for {inspectSeconds}s (stub)");
+        State = EntityState.Patrol;
+    }
+
+    private void MoveToward(Vector3 worldTarget, float speed)
+    {
+        Vector3 pos = transform.position;
+        Vector3 next = Vector3.MoveTowards(pos, worldTarget, speed * Time.deltaTime);
+        // Keep current Y unless target is a waypoint with meaningful height
+        next.y = pos.y;
+        Vector3 flatDir = worldTarget - pos;
+        flatDir.y = 0f;
+        if (flatDir.sqrMagnitude > 0.0001f)
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation,
+                Quaternion.LookRotation(flatDir.normalized, Vector3.up),
+                10f * Time.deltaTime);
+
+        transform.position = new Vector3(next.x, pos.y, next.z);
     }
 
     private void OnDrawGizmosSelected()
