@@ -1,55 +1,86 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.Events;
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(CapsuleCollider))]
 public class RigidbodyFPS : MonoBehaviour
 {
     [Header("References")]
+    [Tooltip("Объект камеры (или её родитель), который наклоняется вверх/вниз. Поворот влево/вправо выполняет сам игрок.")]
     public Transform cameraPivot;
+    [Tooltip("Физический кабель, привязанный к игроку. Может быть пустым, тогда управление катушкой отключено.")]
     public PhysicalCable cable;
 
     [Header("Input")]
+    [Tooltip("Действие движения (Vector2): WASD или стик.")]
     public InputActionReference moveAction;
+    [Tooltip("Действие обзора (Vector2): движение мыши или правый стик.")]
     public InputActionReference lookAction;
 
     [Header("Movement")]
+    [Tooltip("Максимальная горизонтальная скорость, м/с.")]
     public float maxSpeed = 4f;
-    public float acceleration = 25f;   // м/с², время разгона до maxSpeed ≈ maxSpeed / acceleration
-    public float deceleration = 40f;   // м/с², торможение при отсутствии ввода
+    [Tooltip("Ускорение при наличии ввода, м/с². Время разгона до maxSpeed ≈ maxSpeed / acceleration.")]
+    public float acceleration = 20f;
+    [Tooltip("Торможение при отсутствии ввода, м/с².")]
+    public float deceleration = 40f;
 
     [Header("Ground Check")]
+    [Tooltip("Радиус сферы проверки земли под ногами, м.")]
     public float groundCheckRadius = 0.25f;
+    [Tooltip("Дополнительная дистанция проверки земли ниже ног, м.")]
     public float groundCheckDistance = 0.15f;
+    [Tooltip("Слои, считающиеся землёй для проверки.")]
     public LayerMask groundMask = ~0;
 
     [Header("Look")]
+    [Tooltip("Чувствительность мыши (градусов на единицу ввода).")]
     public float mouseSensitivity = 0.1f;
+    [Tooltip("Минимальный угол наклона камеры (вниз), градусы.")]
     public float minPitch = -80f;
+    [Tooltip("Максимальный угол наклона камеры (вверх), градусы.")]
     public float maxPitch = 80f;
-    private float pendingYaw;
 
-    [Header("Cable Retract")]
+    [Header("Cable Reel Input")]
+    [Tooltip("Кнопка «Растягивание». Вместе с WASD открывает колодку и разматывает катушку (состояние B).")]
+    public InputActionReference extendAction;
+    [Tooltip("Кнопка «Затягивание». Пока зажата, колодка открыта и провод наматывается (состояние C). Приоритет выше, чем у B.")]
     public InputActionReference retractAction;
+
+    [Header("Cable Tension Limit (состояние A, и B при исчерпанной длине)")]
+    [Tooltip("Жёсткость «стены» при натяжении. Доля запрещённого движения от кабеля = clamp01(натяжение × это значение). " +
+             "1 = мягко (полный запрет только при максимальном натяжении), 2–3 = жёсткая стена.")]
+    [Range(1f, 4f)] public float tensionBlockSharpness = 2f;
+
+    [Header("Reel Events")]
+    [Tooltip("Вызывается при входе в состояние B (начало разматывания).")]
+    public UnityEvent onDeployStart;
+    [Tooltip("Вызывается при выходе из состояния B.")]
+    public UnityEvent onDeployEnd;
+    [Tooltip("Вызывается при входе в состояние C (начало затягивания).")]
     public UnityEvent onRetractStart;
+    [Tooltip("Вызывается при выходе из состояния C.")]
     public UnityEvent onRetractEnd;
-    
-    [Header("Cable Tension")]
-    [Range(0f, 1f)]
-    public float tensionStartRatio = 0.95f;
-    [Range(0f, 1f)]
-    public float minForceScale = 0.5f;
 
-    private bool isRetracting;
-    public bool IsRetracting => isRetracting;
-
+    private ReelState reelState = ReelState.Locked;
     private Rigidbody rb;
     private Collider ownCollider;
     private readonly Collider[] groundCheckResults = new Collider[8];
     private float pitch;
+    private float pendingYaw;
     private bool grounded;
 
+    /// <summary>Текущее состояние катушки.</summary>
+    public ReelState CurrentReelState => reelState;
+
+    /// <summary>Идёт затягивание кабеля (состояние C).</summary>
+    public bool IsRetracting => reelState == ReelState.Retracting;
+
+    /// <summary>Идёт разматывание кабеля (состояние B).</summary>
+    public bool IsDeploying => reelState == ReelState.Deploying;
+
+    /// <summary>Настраивает Rigidbody игрока, считывает начальный наклон камеры и захватывает курсор.</summary>
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -73,26 +104,35 @@ public class RigidbodyFPS : MonoBehaviour
         Cursor.visible = false;
     }
 
+    /// <summary>Включает все используемые действия ввода.</summary>
     private void OnEnable()
     {
         moveAction?.action.Enable();
         lookAction?.action.Enable();
+        extendAction?.action.Enable();
         retractAction?.action.Enable();
     }
 
+    /// <summary>Выключает все используемые действия ввода.</summary>
     private void OnDisable()
     {
         moveAction?.action.Disable();
         lookAction?.action.Disable();
+        extendAction?.action.Disable();
         retractAction?.action.Disable();
     }
 
+    /// <summary>Каждый кадр обрабатывает обзор мышью и ввод управления катушкой.</summary>
     private void Update()
     {
         HandleLookInput();
-        HandleRetractInput();
+        HandleReelInput();
     }
 
+    /// <summary>
+    /// Каждый физ. шаг проверяет землю, применяет накопленный поворот и двигает игрока.
+    /// При затягивании кабеля игрок стоит на месте.
+    /// </summary>
     private void FixedUpdate()
     {
         CheckGround();
@@ -104,7 +144,7 @@ public class RigidbodyFPS : MonoBehaviour
             pendingYaw = 0f;
         }
 
-        if (isRetracting)
+        if (IsRetracting)
         {
             Vector3 vel = rb.linearVelocity;
             rb.linearVelocity = new Vector3(0f, vel.y, 0f);
@@ -115,6 +155,7 @@ public class RigidbodyFPS : MonoBehaviour
         }
     }
 
+    /// <summary>Считывает ввод мыши: копит поворот корпуса по горизонтали и сразу наклоняет камеру по вертикали.</summary>
     private void HandleLookInput()
     {
         if (lookAction == null)
@@ -131,6 +172,7 @@ public class RigidbodyFPS : MonoBehaviour
         }
     }
 
+    /// <summary>Определяет, стоит ли игрок на земле, по пересечению сферы под ногами с коллайдерами слоя groundMask.</summary>
     private void CheckGround()
     {
         Bounds bounds = ownCollider.bounds;
@@ -158,6 +200,10 @@ public class RigidbodyFPS : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Двигает игрока: разгоняет или тормозит горизонтальную скорость к желаемой
+    /// и передаёт её в физику силой. В воздухе управление отсутствует.
+    /// </summary>
     private void HandleMovement()
     {
         Vector3 vel = rb.linearVelocity;
@@ -175,15 +221,16 @@ public class RigidbodyFPS : MonoBehaviour
 
         bool hasInput = wishDir.sqrMagnitude > 0.01f;
 
-        float scale = hasInput ? GetCableForceScale(wishDir) : 1f;
-        float effectiveAccel = acceleration * scale;
-
         Vector3 wishVel = wishDir * maxSpeed;
-        float rate = hasInput ? effectiveAccel : deceleration;
+        float rate = hasInput ? acceleration : deceleration;
 
-        Vector3 newHVel = grounded
-            ? Vector3.MoveTowards(hVel, wishVel, rate * Time.fixedDeltaTime)
-            : hVel;
+        Vector3 newHVel = hVel;
+
+        if (grounded)
+        {
+            newHVel = Vector3.MoveTowards(hVel, wishVel, rate * Time.fixedDeltaTime);
+            newHVel = LimitByCableTension(newHVel);
+        }
 
         Vector3 deltaV = newHVel - hVel;
         Vector3 forceNeeded = deltaV * rb.mass / Time.fixedDeltaTime;
@@ -191,60 +238,100 @@ public class RigidbodyFPS : MonoBehaviour
         rb.AddForce(forceNeeded, ForceMode.Force);
     }
 
-    private float GetCableForceScale(Vector3 wishDir)
+    /// <summary>
+    /// Убирает из горизонтальной скорости составляющую, направленную от кабеля.
+    /// Доля убираемого = clamp01(натяжение × tensionBlockSharpness).
+    /// Движение к кабелю и по касательной остаётся свободным.
+    /// </summary>
+    private Vector3 LimitByCableTension(Vector3 hVel)
     {
-        if (cable == null || cable.ActiveCount < cable.segmentCount)
-            return 1f;
+        if (cable == null || !cable.IsReelLocked)
+            return hVel;
 
-        float chainLen = cable.GetChainLength();
-        float maxLen = cable.totalLength;
+        float block = Mathf.Clamp01(cable.Tension01 * tensionBlockSharpness);
+        if (block <= 0.001f)
+            return hVel;
 
-        if (chainLen < maxLen * tensionStartRatio)
-            return 1f;
+        Vector3 pull = cable.GetPullDirectionXZ();
+        if (pull.sqrMagnitude < 0.0001f)
+            return hVel;
 
-        Vector3 pullDir = cable.GetPullDirectionXZ();
-        if (pullDir.sqrMagnitude < 0.001f)
-            return 1f;
+        Vector3 away = -pull;
+        float along = Vector3.Dot(hVel, away);
 
-        float awayDot = Vector3.Dot(wishDir, -pullDir);
-        if (awayDot <= 0f)
-            return 1f;
+        if (along <= 0f)
+            return hVel;
 
-        float tensionRatio = Mathf.InverseLerp(maxLen * tensionStartRatio, maxLen, chainLen);
-
-        float scale = Mathf.Lerp(1f, minForceScale, tensionRatio);
-
-        scale = Mathf.Lerp(1f, scale, awayDot);
-
-        return Mathf.Clamp01(scale);
+        return hVel - away * (along * block);
     }
 
-    private void HandleRetractInput()
+    /// <summary>Определяет по вводу нужное состояние катушки и применяет его.</summary>
+    private void HandleReelInput()
     {
-        if (retractAction == null || cable == null)
+        if (cable == null)
             return;
 
-        bool pressed = retractAction.action.IsPressed() && !cable.IsFullyRetracted;
+        ApplyReelState(DetermineReelState());
+    }
 
-        if (pressed && !isRetracting)
+    /// <summary>
+    /// Выбирает состояние катушки по вводу: C (затягивание, если кабель не втянут полностью),
+    /// затем B (кнопка растягивания + движение), иначе A.
+    /// </summary>
+    private ReelState DetermineReelState()
+    {
+        if (retractAction != null &&
+            retractAction.action.IsPressed() &&
+            !cable.IsFullyRetracted)
         {
-            isRetracting = true;
-            cable.SetManualRetract(true);
+            return ReelState.Retracting;
+        }
 
+        if (extendAction != null && extendAction.action.IsPressed() && moveAction != null)
+        {
+            Vector2 move = moveAction.action.ReadValue<Vector2>();
+            if (move.sqrMagnitude > 0.01f)
+                return ReelState.Deploying;
+        }
+
+        return ReelState.Locked;
+    }
+
+    /// <summary>
+    /// Переключает состояние катушки: уведомляет кабель, замораживает или размораживает игрока при затягивании
+    /// и вызывает события выхода из старого и входа в новое состояние.
+    /// </summary>
+    private void ApplyReelState(ReelState next)
+    {
+        if (next == reelState)
+            return;
+
+        ReelState prev = reelState;
+        reelState = next;
+
+        cable.SetReelState(next);
+
+        if (prev == ReelState.Retracting)
+        {
+            rb.constraints = RigidbodyConstraints.FreezeRotation;
+            onRetractEnd?.Invoke();
+        }
+        else if (prev == ReelState.Deploying)
+        {
+            onDeployEnd?.Invoke();
+        }
+
+        if (next == ReelState.Retracting)
+        {
             rb.constraints = RigidbodyConstraints.FreezeRotation
-                            | RigidbodyConstraints.FreezePositionX
-                            | RigidbodyConstraints.FreezePositionZ;
+                           | RigidbodyConstraints.FreezePositionX
+                           | RigidbodyConstraints.FreezePositionZ;
 
             onRetractStart?.Invoke();
         }
-        else if (!pressed && isRetracting)
+        else if (next == ReelState.Deploying)
         {
-            isRetracting = false;
-            cable.SetManualRetract(false);
-
-            rb.constraints = RigidbodyConstraints.FreezeRotation;
-
-            onRetractEnd?.Invoke();
+            onDeployStart?.Invoke();
         }
     }
 }
